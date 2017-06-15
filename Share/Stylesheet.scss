@@ -1,0 +1,145 @@
+.share-actions {
+  position: relative;
+  z-index: 2;
+  display: inline-block;
+  vertical-align: middle;
+  padding: 0 0.25em;
+
+  &,
+  .flex-row > & {
+    flex: 0 1 auto;
+  }
+
+  button.share {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 10em;
+    color: #aaa;
+    white-space: nowrap;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+
+    .text {
+      padding: 0 0.15em;
+    }
+
+    .count {
+      padding: 0 0 0 0.65em;
+      margin-left: 0.5em;
+      position: relative;
+
+      &::before {
+        border-left: 1px solid #e1e1e1;
+        top: 50%;
+        left: 0;
+        height: 0.75em;
+        transform: translateY(-50%);
+        position: absolute;
+        content: " ";
+        display: block;
+      }
+    }
+  }
+
+  .share-buttons {
+    background: #fafafa;
+    box-shadow: 0 2px 3px 1px rgba(0,0,0,0.15);
+    display: inline-block;
+    padding: 0.35em 0.45em;
+    border-radius: 10em;
+    text-align: center;
+    position: absolute;
+    z-index: -1;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, 100%);
+    opacity: 0;
+    transition: all 150ms ease-in;
+    transition-property: opacity, box-shadow, transform;
+    transition-delay: 1s;
+    will-change: opacity, box-shadow, transform;
+    white-space: nowrap;
+
+    &::after {
+      content: " ";
+      display: block;
+      width: 0;
+      height: 0;
+      border: 5px solid transparent;
+      border-top-color: #fafafa;
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    button {
+      background: #aaa;
+      border: 0;
+      display: inline-flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      width: 3em;
+      height: 3em;
+      padding: 0;
+      border-radius: 10em;
+      color: #fff;
+      margin: 0 0.15em;
+
+      svg {
+        max-width: 1.5em;
+        max-height: 1.5em;
+
+        use {
+          fill: #fff;
+        }
+      }
+
+      &:first-child { margin-left: 0; }
+      &:last-child { margin-right: 0; }
+
+      &.facebook {
+        background: #3b5997;
+        &:hover {
+          background: #2d4a83;
+        }
+      }
+
+      &.twitter {
+        background: #00acee;
+        &:hover {
+          background: #0099d6;
+        }
+      }
+
+      &.pinterest {
+        background: #cc2127;
+        &:hover {
+          background: #a4181c;
+        }
+      }
+
+      &.tumblr {
+        background: #35465c;
+        &:hover {
+          background: #1e2a3a;
+        }
+      }
+    }
+  }
+
+  &:hover .share-buttons {
+    transition-delay: 0s;
+    z-index: 3;
+  }
+
+  &:hover .share-buttons,
+  .share-buttons:hover {
+    opacity: 1;
+    transform: translate(-50%, 0%);
+  }
+}
