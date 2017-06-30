@@ -1,3 +1,42 @@
+/* ================
+# Masonry Component
+With infinite scrolling and virtualized list rendering.
+
+## Features:
+- Multi-column spanning
+- 
+
+## Opinionated:
+- Columns are fixed-width
+- Cell items have pre-determined height
+
+- Layout is calculated before render
+- Layout is only done if:
+  A) Number of props.items changes
+  B) New page is fetched
+  
+
+## How to layout your item:
+class Item extends React.Component {
+  static getColumnSpanFromProps = ({ isFeatured }, getState) => {
+    if (isFeatured) {
+      return 2;
+    }
+
+    return 1;
+  }
+
+  static getHeightFromProps = () => {
+    return IMAGE_HEIGHT + TITLE_HEIGHT + FOOTER_HEIGHT;
+  }
+  
+  render() {
+    ...
+  }
+}
+
+================== */
+
 import React from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
@@ -99,18 +138,20 @@ export default class Masonry extends React.PureComponent {
 
       // Ok now we have an item, let's decide how many columns it spans
       const columnSpanSelector = component.constructor.getColumnSpanFromProps || component.type.getColumnSpanFromProps || defaultColumnSpanSelector;
-      const columnSpan = Math.min(maxColumns, columnSpanSelector(props.getState, component.props));
+      const columnSpan = Math.min(maxColumns, columnSpanSelector(component.props, props.getState));
 
       // Check if the column will exceed maxColumns
       if (column + columnSpan > maxColumns) {
         column = 0;
       }
 
+      // I'm not sure what's the proper way to honor Redux-wrapped and standard components
       if (!('getHeightFromProps' in component.constructor) && !('getHeightFromProps' in component.type)) {
         throw new Error(`Component type ${componentName} does not respond to 'getHeightFromProps'`);
       }
+
       const selector = component.constructor.getHeightFromProps || component.type.getHeightFromProps;
-      const height = selector(props.getState, component.props, columnSpan);
+      const height = selector(component.props, columnSpan, props.getState);
 
       if (isNaN(height)) {
         console.warn(`Skipping feed item ${componentName} with props ${JSON.stringify(component.props)} because "${height}" is not a number.`);
