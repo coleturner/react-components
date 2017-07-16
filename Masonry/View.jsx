@@ -22,7 +22,7 @@
  * 
     <Masonry
       items={myArrayOfItems}
-      itemComponent={MyCustomComponent}
+      itemComponent={MyMasonryItem}
       alignCenter={true}
       containerClassName="masonry"
       layoutClassName="masonry-view"
@@ -35,6 +35,23 @@
       onInfiniteLoad={this.onFetch}
       getState={this.props.getState}
     />
+
+*  How to layout your item:
+    class MyMasonryItem extends React.Component {
+      static getColumnSpanFromProps = ({ isFeatured }, getState) => {
+        if (isFeatured) {
+          return 2;
+        }
+        return 1;
+      }
+      static getHeightFromProps = () => {
+        return IMAGE_HEIGHT + TITLE_HEIGHT + FOOTER_HEIGHT;
+      }
+      
+      render() {
+        ...
+      }
+    }
  */
 
 
