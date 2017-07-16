@@ -1,41 +1,42 @@
-/* ================
-# Masonry Component
-With infinite scrolling and virtualized list rendering.
+/**
+ * Masonry Component for React
+ * @author Cole Turner <turner.cole@gmail.com | www.cole.codes>
+ * 
+ * If you use this, please retain the author name.
+ * Please PR any new features you add so that others can enjoy
+ * the blood sweat and tears of open source.
+ * 
+ * Features:
+ *  - Masonry Layout
+ *    A) Items must have fixed column width
+ *    B) Items can span multiple columns
+ *    C) Layout will be precalculated but only if the number of items has changed
+ *        - This engine was designed for a static order placement
+ *          and was not designed for reordering
+ *    D) New items will layout if the previous layout parameters still apply
+ *    E) Function `getState` returns either Redux or local component state
+ *  - Infinite Scroll
+ * 
+ * 
+ * How to use:
+ * 
+    <Masonry
+      items={myArrayOfItems}
+      itemComponent={MyCustomComponent}
+      alignCenter={true}
+      containerClassName="masonry"
+      layoutClassName="masonry-view"
+      pageClassName="masonry-page"
+      loadingElement={<span>Loading...</span>}
+      columnWidth={columnWidth}
+      columnGutter={columnGutter}
+      hasMore={this.props.hasMore}
+      isLoading={this.props.isFetching}
+      onInfiniteLoad={this.onFetch}
+      getState={this.props.getState}
+    />
+ */
 
-## Features:
-- Multi-column spanning
-- 
-
-## Opinionated:
-- Columns are fixed-width
-- Cell items have pre-determined height
-
-- Layout is calculated before render
-- Layout is only done if:
-  A) Number of props.items changes
-  B) New page is fetched
-  
-
-## How to layout your item:
-class Item extends React.Component {
-  static getColumnSpanFromProps = ({ isFeatured }, getState) => {
-    if (isFeatured) {
-      return 2;
-    }
-
-    return 1;
-  }
-
-  static getHeightFromProps = () => {
-    return IMAGE_HEIGHT + TITLE_HEIGHT + FOOTER_HEIGHT;
-  }
-  
-  render() {
-    ...
-  }
-}
-
-================== */
 
 import React from 'react';
 import PropTypes from 'prop-types';
@@ -44,13 +45,21 @@ import throttle from 'lodash.throttle';
 
 const noPage = { stop: 0 };
 const defaultColumnSpanSelector = () => 1;
+const sortAscending = (a, b) => a - b;
+const sortTopByAscending = (a, b) => a.top - b.top;
+const classNamePropType = PropTypes.oneOfType([
+    PropTypes.String,
+    PropTypes.array
+  ]).isRequired;
 
 export default class Masonry extends React.PureComponent {
   static propTypes = {
     alignCenter: PropTypes.bool.isRequired,
-    className: PropTypes.any,
     columnGutter: PropTypes.number.isRequired,
     columnWidth: PropTypes.number.isRequired,
+    containerClassName: classNamePropType,
+    layoutClassName: classNamePropType,
+    pageClassName: classNamePropType,
     hasMore: PropTypes.bool.isRequired,
     isLoading: PropTypes.bool.isRequired,
     items: PropTypes.array.isRequired,
@@ -59,6 +68,7 @@ export default class Masonry extends React.PureComponent {
       PropTypes.function
     ]).isRequired,
     itemProps: PropTypes.object,
+    loadingElement: PropTypes.node,
     onInfiniteLoad: PropTypes.function.isRequired,
     threshold: PropTypes.number.isRequired,
     scrollAnchor: PropTypes.object,
@@ -67,6 +77,14 @@ export default class Masonry extends React.PureComponent {
 
   static defaultProps = {
     alignCenter: true,
+    containerClassName: 'masonry collection-group',
+    layoutClassName: 'masonry-view',
+    pageClassName: 'masonry-page',
+    loadingElement: (
+      <div className="loading-cap">
+        <AnimatedGem animate={true} />
+      </div>
+    ),
     scrollAnchor: window,
     threshold: window.innerHeight * 2
   }
@@ -92,10 +110,10 @@ export default class Masonry extends React.PureComponent {
   }
 
   onResize = throttle(() => {
-    this.layout(this.props);
+    this.layout(this.props, true);
   }, 150, { trailing: true })
 
-  layout(props) {
+  layout(props, rearrange=false) {
     if (!this.node) {
       return;
     }
@@ -117,10 +135,26 @@ export default class Masonry extends React.PureComponent {
     const itemsPerPage = maxColumns * Math.ceil(viewableHeight / this.state.averageHeight);
     const top = Math.max(0, this.getScrollTop() + this.getScrollOffset());
 
+    // Here we decide if we layout the entire grid or just new items
+    const shouldRearrange = (
+      rearrange ||
+      !this.state.lastWorkingPage ||
+      this.state.lastWorkingIndex === null ||
+      maxColumns !== this.state.maxColumns
+    );
+
+    // Setup our boundaries for layout
+    const columnHeights = shouldRearrange ? new Array(maxColumns).fill(0) : this.state.columnHeights;
+    const columnGaps = shouldRearrange ? new Array(maxColumns).fill([]) : this.state.columnGaps;
+
+    const initialWorkingPages = shouldRearrange ? [] : this.state.pages;
+    const itemsToLayout = shouldRearrange ? items : items.slice(this.state.lastWorkingIndex + 1);
+
     let column = 0;
+    let lastWorkingIndex = null;
 
     const stagedItems = [];
-    const pages = items.reduce((workingPages, component) => {
+    const pages = itemsToLayout.reduce((workingPages, component) => {
       // Decide which page we are on
       let workingPage = null;
 
@@ -138,23 +172,21 @@ export default class Masonry extends React.PureComponent {
 
       // Ok now we have an item, let's decide how many columns it spans
       const columnSpanSelector = component.constructor.getColumnSpanFromProps || component.type.getColumnSpanFromProps || defaultColumnSpanSelector;
-      const columnSpan = Math.min(maxColumns, columnSpanSelector(component.props, props.getState));
+      const columnSpan = Math.min(maxColumns, columnSpanSelector(props.getState, component.props));
 
       // Check if the column will exceed maxColumns
       if (column + columnSpan > maxColumns) {
         column = 0;
       }
 
-      // I'm not sure what's the proper way to honor Redux-wrapped and standard components
       if (!('getHeightFromProps' in component.constructor) && !('getHeightFromProps' in component.type)) {
         throw new Error(`Component type ${componentName} does not respond to 'getHeightFromProps'`);
       }
-
       const selector = component.constructor.getHeightFromProps || component.type.getHeightFromProps;
-      const height = selector(component.props, columnSpan, props.getState);
+      const height = selector(props.getState, component.props, columnSpan, columnGutter);
 
       if (isNaN(height)) {
-        console.warn(`Skipping feed item ${componentName} with props ${JSON.stringify(component.props)} because "${height}" is not a number.`);
+        //console.warn(`Skipping feed item ${componentName} with props ${JSON.stringify(component.props)} because "${height}" is not a number.`);
         return workingPages;
       }
 
@@ -162,11 +194,11 @@ export default class Masonry extends React.PureComponent {
         component,
         column,
         columnSpan,
-        left: viewableStart + column * (columnWidth + columnGutter),
-        top: 0,
         height,
         width: (columnSpan * columnWidth) + ((columnSpan - 1) * columnGutter)
       };
+
+      //console.log("component", component.props);
 
       // console.warn(componentName, "index:", index, "column:", column, "on page", workingPages.length-1);
 
@@ -174,32 +206,87 @@ export default class Masonry extends React.PureComponent {
       // First we take a slice of the items above
       const previousSlicedItems = stagedItems.slice(-1 * itemsPerPage);
 
-      // But we only care about the same column
-      const upperItems = this.findItemsInSameColumn(previousSlicedItems, item);
+      // Let's fill any gaps if possible.
+      //const positionWithinGap = this.findPositionInItemGaps(previousSlicedItems, height, viewableStart);
+      const positionWithinGap = this.findPositionInGaps(
+        Object.values(columnGaps),
+        maxColumns,
+        columnSpan,
+        height,
+        viewableStart
+      );
 
-      // And we want to fill gaps if possible
-      const upperItemsBeforeGap = this.findItemsBeforeFillableGaps(upperItems, height);
-
-      if (upperItemsBeforeGap.length) {
-        const upperMostPregapItem = upperItemsBeforeGap[0];
-        item.left = upperMostPregapItem.left;
-        upperMostPregapItem.top = upperMostPregapItem.top + upperMostPregapItem.height + columnGutter;
+      if (positionWithinGap) {
+        Object.assign(item, positionWithinGap);
       } else {
+        // And then for good measure, transverse up a little more to catch any items staged below
+        stagedItems.slice(stagedItems.length - 1 - itemsPerPage, -1 * itemsPerPage).forEach(previousItem => {
+          if (previousSlicedItems.some(previousSlicedItem => previousSlicedItem.top < previousItem.top)) {
+            previousSlicedItems.push(previousItem);
+          }
+        });
+
+        previousSlicedItems.sort(sortTopByAscending);
+
+        // Then find the smallest column
+        const position = this.findPositionForItem(previousSlicedItems, columnSpan, maxColumns, columnHeights, height, viewableStart);
+        Object.assign(item, position);
+        /*
+        // But we only care about the same column
+        const upperItems = this.findItemsInSameColumn(previousSlicedItems, item);
+
         // No gaps to fill, so stage it at the end
         const upperItemsOffsetTops = upperItems.map(upperItem =>
           upperItem.top + upperItem.height + columnGutter
         ).concat(0);
 
-        item.top = Math.max.apply(Math, upperItemsOffsetTops);
+        item.top = Math.max.apply(Math, upperItemsOffsetTops);*/
       }
+
+      const minPreviousSlicedItemTop = Math.min(...previousSlicedItems.map(i => i.top));
+
+      columnHeights
+        .slice(item.column, item.column + columnSpan)
+        .forEach((thisColumn, index) => {
+          // Remove any gaps we're overlaying
+          columnGaps[item.column + index] = columnGaps[item.column + index].filter(gap => {
+            const [gapTop, gapHeight] = gap;
+            if (
+              // If we filled the gap
+              (item.top <= gapTop && item.top + item.height >= gapTop) ||
+              (item.top >= gapTop && item.top <= gapTop + gapHeight) ||
+              // or if the gap is above our fill zone
+              gapTop < minPreviousSlicedItemTop
+            ) {
+              //console.warn("removed gap");
+              return false;
+            }
+
+            return true;
+          });
+
+          // Add a gap if we've created one
+          if (item.top > thisColumn) {
+            columnGaps[item.column + index].push([
+              thisColumn,
+              item.top - thisColumn - this.props.columnGutter
+            ]);
+          }
+
+          columnHeights[item.column + index] = Math.max(thisColumn, item.top + item.height + columnGutter);
+        });
+
+      //console.log("columnHeights", columnHeights);
+      //console.log("columnGaps", columnGaps);
 
       column += columnSpan;
 
       workingPage.items.push(item);
       stagedItems.push(item);
+      lastWorkingIndex = items.indexOf(component); // not `item`!!
 
       return workingPages;
-    }, []).map(page => {
+    }, initialWorkingPages).map(page => {
       // Calculate when a page starts and stops
       // To determine which pages are visible
       const itemsTop = page.items.map(item => item.top);
@@ -215,43 +302,213 @@ export default class Masonry extends React.PureComponent {
     // Facilitate the average height for next layout's itemsPerPage
     const averageHeight = Math.round(stagedItems.map(item => item.height).reduce((prev, val) => prev + val, 0) / stagedItems.length);
 
-    this.setState({ averageHeight, pages });
+    this.setState({
+      pages,
+      lastWorkingIndex,
+      averageHeight,
+      columnHeights,
+      columnGaps,
+      maxColumns
+    });
   }
 
-  findItemsBeforeFillableGaps = (items, height) => {
-    const columnItemsCache = {};
+  findPositionForItem(previousItems, columnSpan, maxColumns, columnHeights, itemHeight, viewableStart) {
+    // If it spans one column, return the shortest column
+    if (columnSpan === 1) {
+      const smallestHeight = columnHeights.slice(0).sort(sortAscending)[0];
+      const column = columnHeights.indexOf(smallestHeight);
+      //console.log("smallestHeight", columnHeights, smallestHeight, column);
+      const left = Math.round(this.getLeftPositionForColumn(column, viewableStart));
+      const top = Math.round(columnHeights[column]);
 
-    return items.filter(upperItem => {
-      // Lazy detect items in each column
-      const columnKey = upperItem.column.toString();
-      if (!(columnKey in columnItemsCache)) {
-        columnItemsCache[columnKey] = this.findItemsInSameColumn(items, upperItem).sort((a, b) => a.top < b.top ? -1 : 1);
+
+      //console.log("added to smallest column");
+
+      return {
+        column,
+        left,
+        top
       }
+    }
 
-      const columnItems = columnItemsCache[columnKey];
+    // Find columns to span that will create the shortest gap
+    const columnGaps = columnHeights
+      .slice(0, maxColumns - columnSpan + 1) // only measure columns it can span
+      .reduce((gapReduction, thisColumnHeight, column) => {
 
-      // Iterate through column, looking for gaps
-      for (let i = 0; i < columnItems.length; i++) {
-        const thisItemInColumn = columnItems[i];
-        const nextItemInColumn = columnItems[i];
+        //console.log("should overextend", thisColumnHeight, itemHeight, "nextcolumn", columnHeights[column + 1]);
+        if (thisColumnHeight < columnHeights[column + 1]) {
+          // If this item clips the next column, overextend
+          //console.warn("this will overextend!");
+          gapReduction[column] = columnHeights[column + 1];
+        } else {
+          // Determine how much of a gap will be created if we start in this column
+          const columnsToMeasure = columnHeights
+            .slice(column, column + columnSpan);
 
-        if (nextItemInColumn && nextItemInColumn.top - thisItemInColumn.top >= height) {
-          return true;
+          gapReduction[column] = Math.max(...columnsToMeasure) - Math.min(...columnsToMeasure);
+        }
+        return gapReduction;
+      }, []);
+
+    const column = columnGaps.indexOf(columnGaps.slice(0).sort(sortAscending)[0]);
+    const maxSpannedHeight = Math.max(...columnHeights.slice(column, column + columnSpan));
+    const top = Math.round(maxSpannedHeight);
+    const left = Math.round(this.getLeftPositionForColumn(column, viewableStart));
+
+    //console.log("added to column with smallest gap");
+    return {
+      column,
+      left,
+      top
+    };
+  }
+
+  findPositionInGaps = (gapColumns, maxColumns, columnSpan, height, viewableStart) => {
+    if (columnSpan === 1) {
+      // Easy, find the first gap
+
+      for (let column = 0; column < gapColumns.length; column++) {
+        const testColumn = gapColumns[column];
+        const gap = testColumn.find(g => g[1] >= height);
+
+        if (gap) {
+          const left = Math.round(this.getLeftPositionForColumn(column, viewableStart));
+
+          //console.log("filled by single gap", gapColumns);
+          return {
+            left,
+            top: gap[0],
+            column
+          }
         }
       }
+    }
 
-      return false;
-    }).sort((a, b) => a.top < b.top ? -1 : 1);
+    if (!gapColumns.some(column => column.length > 0)) {
+      return null;
+    }
+
+    // Much more difficult
+    // only measure columns it can span
+    const fillableColumnGaps = gapColumns
+      .slice(0, maxColumns - columnSpan + 1)
+      .reduce((workingColumns, thisColumnGaps, columnIndex) => {
+        workingColumns[columnIndex] = thisColumnGaps.filter(g => g[1] >= height);
+        return workingColumns;
+      }, new Array(gapColumns.length).fill([]));
+
+    // Sorry this is going to get verbose
+    const spannableColumnGaps = fillableColumnGaps.reduce((acc, thisColumn, index) => {
+      // Filter out columns
+      acc[index] = thisColumn.filter(thisColumnGap => {
+        const [thisColumnGapTop, thisColumnGapHeight] = thisColumnGap;
+
+        // Where the item can't span next columns
+        const nextColumns = fillableColumnGaps.slice(index + 1);
+        return nextColumns.every(nextSpannableColumn => {
+          // By looking for a gap it can fit into
+          return nextSpannableColumn.find(nextSpannableColumnGap => {
+            const [nextSpannableColumnGapTop, nextSpannableColumnGapHeight] = nextSpannableColumnGap;
+
+            // only if it can slide right in there ;)
+            return (
+              nextSpannableColumnGapTop <= thisColumnGapTop &&
+              nextSpannableColumnGapTop + nextSpannableColumnGapHeight >= thisColumnGapTop + thisColumnGapHeight
+            );
+          });
+        });
+      });
+
+      return acc;
+    }, new Array(fillableColumnGaps.length).fill([]));
+
+    // Now interate through the message
+    for (let column = 0; column < spannableColumnGaps.length; column++) {
+      if (spannableColumnGaps[column].length) {
+        const gap = spannableColumnGaps[column][0];
+        const left = Math.round(this.getLeftPositionForColumn(column, viewableStart));
+
+        //console.log("filled by spannable gap");
+        return {
+          left,
+          top: gap[0],
+          column
+        }
+      }
+    }
+
+    // I have failed you
+    return null;
   }
+
+/*
+  findPositionInItemGaps = (items, height, viewableStart) => {
+    const itemsByColumn = items.reduce((acc, item) => {
+      for (let i = 0; i < item.columnSpan; i++) {
+        const columnKey = (item.column + i).toString();
+        acc[columnKey] = acc[columnKey] || [];
+        acc[columnKey].push({
+          ...item,
+          column: item.column + i
+        });
+        console.log("potential item before gap", item, "in column", columnKey);
+      }
+
+      console.log("acc", acc);
+      return acc;
+    }, {});
+
+    const itemsBeforeGap = [];
+
+    console.log("itemsByColumn", itemsByColumn);
+    Object.values(itemsByColumn).forEach(columnItems => {
+      console.log("column items", columnItems);
+      columnItems.sort(sortTopByAscending).forEach((columnItem, index, sortedColumnItems) => {
+        const nextItem = sortedColumnItems[index + 1];
+
+        // If there's enough space to stage `height` between columnItem and nextItem
+        if (
+          !!nextItem &&
+          columnItem.top + columnItem.height + height + (this.props.columnGutter * 2) < nextItem.top
+        ) {
+          console.log("found space between", columnItem, nextItem);
+          itemsBeforeGap.push(columnItem);
+        }
+      });
+    });
+
+    const preGapItems = itemsBeforeGap.sort(sortTopByAscending);
+    if (preGapItems.length) {
+    console.log("preGapItems", preGapItems);
+      const pregapItem = preGapItems.shift();
+      console.log("pregapItem", pregapItem);
+      const column = pregapItem.column;
+      const left = Math.round(this.getLeftPositionForColumn(pregapItem.column, viewableStart));
+      const top = pregapItem.top + pregapItem.height + this.props.columnGutter;
+
+      return {
+        left,
+        top,
+        column
+      }
+    }
+
+    return null;
+  }*/
 
   findItemsInSameColumn(itemList, item) {
     return itemList.filter(upperItem => {
       return item.column === upperItem.column ||
-      (
-        (item.component.props.featured && item.column + 1 === upperItem.column) ||
-        (upperItem.component.props.featured && upperItem.column + 1 === item.column)
-      );
+        (
+          item.column >= upperItem.column &&
+          item.column + item.columnSpan <= upperItem.column + upperItem.columnSpan
+        );
     });
+  }
+
+  getLeftPositionForColumn(column, viewableStart) {
+    return viewableStart + (column * (this.props.columnWidth + this.props.columnGutter));
   }
 
   onScroll = throttle(() => {
@@ -355,27 +612,29 @@ export default class Masonry extends React.PureComponent {
 
   render() {
     const {
-      className,
+      containerClassName,
+      layoutClassName,
+      pageClassName,
       hasMore,
+      loadingElement,
       isLoading,
       itemProps,
       itemComponent: Item,
-      ...otherProps
     } = this.props;
 
     const {
       pages
     } = this.state;
 
-    const height = (pages[pages.length - 1] || noPage).stop;
+    const layoutHeight = (pages[pages.length - 1] || noPage).stop;
 
     return (
       <div
         ref={this.onReference}
-        className={classNames('masonry', className)}>
+        className={classNames(containerClassName)}>
         <div
-          className="masonry-view"
-          style={{ height: height + 'px' }}>
+          className={classNames(layoutClassName)}
+          style={{ height: `${layoutHeight}px`, position: 'relative' }}>
           {pages.map((page, index) => {
             if (!page.visible) {
               return null;
@@ -383,14 +642,15 @@ export default class Masonry extends React.PureComponent {
 
             return (
               <div
-                className="masonry-page"
+                className={classNames(pageClassName)}
                 key={index}
                 data-page={index}>
-                {page.items.map(({ component, left, top, width, columnSpan }, itemIndex) => {
+                {page.items.map(({ component, left, top, width, height, columnSpan }, itemIndex) => {
                   return (
                     <Item
                       key={itemIndex}
                       columnSpan={columnSpan}
+                      data-h={height}
                       style={{
                         position: 'absolute',
                         left: left + 'px',
@@ -406,11 +666,7 @@ export default class Masonry extends React.PureComponent {
             );
           })}
         </div>
-        {hasMore && isLoading && (
-          <div className="loading-cap">
-            Loading next page...
-          </div>
-        )}
+        {hasMore && isLoading && loadingElement}
       </div>
     );
   }
