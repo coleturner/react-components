@@ -142,14 +142,14 @@ export default class Masonry extends React.PureComponent {
       itemComponent
     } = props;
 
-    const componentName = itemComponent.type.displayName || itemComponent.type.name;
+    const componentName = itemComponent.constructor.displayName || itemComponent.constructor.name;
 
     if (!('getHeightFromProps' in component.constructor) && !('getHeightFromProps' in component.type)) {
       throw new Error(`Component type ${componentName} does not respond to 'getHeightFromProps'`);
     }
 
-    const heightSelector = itemComponent.constructor.getHeightFromProps || itemComponent.type.getHeightFromProps;
-    const columnSpanSelector = itemComponent.constructor.getColumnSpanFromProps || itemComponent.type.getColumnSpanFromProps || defaultColumnSpanSelector;
+    const heightSelector = itemComponent.constructor.getHeightFromProps;
+    const columnSpanSelector = itemComponent.constructor.getColumnSpanFromProps || defaultColumnSpanSelector;
 
 
     // Decide a starter position for centering
