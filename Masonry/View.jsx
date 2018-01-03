@@ -99,7 +99,7 @@ export default class Masonry extends React.PureComponent {
     pageClassName: 'masonry-page',
     loadingElement: (
       <div className="loading-cap">
-        <AnimatedGem animate={true} />
+        Loading...
       </div>
     ),
     scrollAnchor: window,
