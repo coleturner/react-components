@@ -86,7 +86,7 @@ export default class Masonry extends React.PureComponent {
     ]).isRequired,
     itemProps: PropTypes.object,
     loadingElement: PropTypes.node,
-    onInfiniteLoad: PropTypes.function.isRequired,
+    onInfiniteLoad: PropTypes.func.isRequired,
     threshold: PropTypes.number.isRequired,
     scrollAnchor: PropTypes.object,
     scrollOffset: PropTypes.number,
