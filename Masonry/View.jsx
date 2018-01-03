@@ -144,7 +144,7 @@ export default class Masonry extends React.PureComponent {
 
     const componentName = itemComponent.constructor.displayName || itemComponent.constructor.name;
 
-    if (!('getHeightFromProps' in component.constructor) && !('getHeightFromProps' in component.type)) {
+    if (!('getHeightFromProps' in itemComponent.constructor)) {
       throw new Error(`Component type ${componentName} does not respond to 'getHeightFromProps'`);
     }
 
