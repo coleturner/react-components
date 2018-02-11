@@ -3,7 +3,6 @@
  * @author Cole Turner <turner.cole@gmail.com | www.cole.codes>
  * */
 
-
 import React from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
@@ -70,9 +69,8 @@ export default class Masonry extends React.PureComponent {
   componentDidMount() {
     this.layout(this.props);
     this.onScroll();
-    // if(this.props.onInfiniteLoad){
-    //   document.addEventListener('scroll', this.onScroll);
-    // }
+  document.addEventListener('scroll', this.onScroll);
+  }
     window.addEventListener('resize', this.onResize);
   }
 
@@ -114,14 +112,14 @@ export default class Masonry extends React.PureComponent {
 
 
     // Decide a starter position for centering
-    const viewableWidth = this.node.offsetWidth; //1280
-    const viewableHeight = this.getViewableHeight(); //800
-    const maxColumns = Math.floor(viewableWidth / (columnWidth + columnGutter)); //4
-    const spannableWidth = maxColumns * columnWidth + (columnGutter * (maxColumns - 1)); //1215
+    const viewableWidth = this.node.offsetWidth;
+    const viewableHeight = this.getViewableHeight();
+    const maxColumns = Math.floor(viewableWidth / (columnWidth + columnGutter));
+    const spannableWidth = maxColumns * columnWidth + (columnGutter * (maxColumns - 1));
     const viewableStart = this.props.alignCenter ? (viewableWidth - spannableWidth) / 2 : 0;
 
     // Setup bounds and limiters for deciding how to stage items in a page
-    const itemsPerPage = maxColumns * Math.ceil(viewableHeight / this.state.averageHeight); //12
+    const itemsPerPage = maxColumns * Math.ceil(viewableHeight / this.state.averageHeight);
     const top = Math.max(0, this.getScrollTop() + this.getScrollOffset()); 
 
     // Here we decide if we layout the entire grid or just new items
