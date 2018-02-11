@@ -35,10 +35,7 @@ export default class Masonry extends React.PureComponent {
     ]).isRequired,
     itemProps: PropTypes.object,
     loadingElement: PropTypes.node,
-    onInfiniteLoad: PropTypes.oneOfType([
-                      PropTypes.func.isRequired,
-                      PropTypes.bool.isRequired
-                    ]),
+    onInfiniteLoad: PropTypes.func.isRequired,
     threshold: PropTypes.number.isRequired,
     scrollAnchor: PropTypes.object,
     scrollOffset: PropTypes.number,
@@ -58,7 +55,7 @@ export default class Masonry extends React.PureComponent {
           color3="#009688"
           color4="#ff5722"
         />
-      </div>
+        </div>
     ),
     scrollAnchor: window,
     threshold: window.innerHeight * 2
@@ -103,12 +100,12 @@ export default class Masonry extends React.PureComponent {
 
     const componentName = itemComponent.constructor.displayName || itemComponent.constructor.name;
 
-    if (!('getHeightFromProps' in itemComponent.constructor) && !('getHeightFromProps' in itemComponent.prototype.constructor)){
+    if (!('getHeightFromProps' in itemComponent.constructor)) {
       throw new Error(`Component type ${componentName} does not respond to 'getHeightFromProps'`);
     }
 
-    const heightSelector = itemComponent.getHeightFromProps;
-    const columnSpanSelector = itemComponent.getColumnSpanFromProps || defaultColumnSpanSelector;
+    const heightSelector = itemComponent.constructor.getHeightFromProps;
+    const columnSpanSelector = itemComponent.constructor.getColumnSpanFromProps || defaultColumnSpanSelector;
 
 
     // Decide a starter position for centering
@@ -544,11 +541,8 @@ export default class Masonry extends React.PureComponent {
                         position: 'absolute',
                         left: left + 'px',
                         top: top + 'px',
-                        width: width + 'px',
-                        height: height + 'px',
-                        /*backgroundImage: 'url(' + `${props.url}` + ')'*/
+                        width: width + 'px'
                       }}
-                      onOpen={this.props.onOpen}
                       {...props}
                     />
                   );
