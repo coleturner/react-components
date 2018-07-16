@@ -1,11 +1,11 @@
 /**
  * Masonry Component for React
  * @author Cole Turner <turner.cole@gmail.com | www.cole.codes>
- * 
+ *
  * If you use this, please retain the author name.
  * Please PR any new features you add so that others can enjoy
  * the blood sweat and tears of open source.
- * 
+ *
  * Features:
  *  - Masonry Layout
  *    A) Items must have fixed column width
@@ -16,8 +16,8 @@
  *    D) New items will layout if the previous layout parameters still apply
  *    E) Function `getState` returns either Redux or local component state
  *  - Infinite Scroll
- * 
- * 
+ *
+ *
  * How to use:
     const myArrayOfItems = [{ name: 'Hello' }, { name: 'World' }]
     <Masonry
@@ -47,7 +47,7 @@
       static getHeightFromProps = (getState, props, columnSpan, columnGutter) => {
         return IMAGE_HEIGHT + TITLE_HEIGHT + FOOTER_HEIGHT;
       }
-      
+
       render() {
         ...
       }
@@ -65,9 +65,9 @@ const defaultColumnSpanSelector = () => 1;
 const sortAscending = (a, b) => a - b;
 const sortTopByAscending = (a, b) => a.top - b.top;
 const classNamePropType = PropTypes.oneOfType([
-    PropTypes.String,
-    PropTypes.array
-  ]).isRequired;
+  PropTypes.string,
+  PropTypes.array
+]).isRequired;
 
 export default class Masonry extends React.PureComponent {
   static propTypes = {
@@ -80,9 +80,9 @@ export default class Masonry extends React.PureComponent {
     hasMore: PropTypes.bool.isRequired,
     isLoading: PropTypes.bool.isRequired,
     items: PropTypes.array.isRequired,
-    itemComponent: PropTypes.oneOf([
+    itemComponent: PropTypes.oneOfType([
       PropTypes.instanceOf(React.Component),
-      PropTypes.function
+      PropTypes.func
     ]).isRequired,
     itemProps: PropTypes.object,
     loadingElement: PropTypes.node,
@@ -498,7 +498,7 @@ export default class Masonry extends React.PureComponent {
     ) {
       return true;
     }
-  
+
     return false;
   }
 
