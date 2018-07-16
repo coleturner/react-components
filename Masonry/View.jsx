@@ -58,7 +58,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import throttle from 'lodash.throttle';
+import throttle from 'lodash/throttle';
 
 const noPage = { stop: 0 };
 const defaultColumnSpanSelector = () => 1;
