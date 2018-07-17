@@ -67,7 +67,7 @@ const sortTopByAscending = (a, b) => a.top - b.top;
 const classNamePropType = PropTypes.oneOfType([
   PropTypes.string,
   PropTypes.array
-]).isRequired;
+]);
 
 export default class Masonry extends React.PureComponent {
   static propTypes = {
@@ -104,7 +104,8 @@ export default class Masonry extends React.PureComponent {
       </div>
     ),
     scrollAnchor: window,
-    threshold: window.innerHeight * 2
+    threshold: window.innerHeight * 2,
+    columnGutter: 0
   }
 
   state = { averageHeight: 300, pages: [] }
