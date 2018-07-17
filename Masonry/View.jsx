@@ -55,7 +55,6 @@
     }
  */
 
-
 import React from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
@@ -136,7 +135,7 @@ export default class Masonry extends React.PureComponent {
   }
 
   onResize = throttle(() => {
-    this.layout(((this.state.props || this.props), true);
+    this.layout((this.state.props || this.props), true);
   }, 150, { trailing: true })
 
   dynamicWidth = () => {
@@ -189,7 +188,6 @@ export default class Masonry extends React.PureComponent {
 
     const heightSelector = c.getHeightFromProps;
     const columnSpanSelector = c.getColumnSpanFromProps || defaultColumnSpanSelector;
-
 
     // Decide a starter position for centering
     const viewableWidth = this.node.offsetWidth;
@@ -319,7 +317,6 @@ export default class Masonry extends React.PureComponent {
 
           columnHeights[item.column + index] = Math.max(thisColumn, item.top + item.height + columnGutter);
         });
-
 
       column += columnSpan;
       workingPage.items.push(item);
@@ -477,7 +474,6 @@ export default class Masonry extends React.PureComponent {
     return null;
   }
 
-
   findItemsInSameColumn(itemList, item) {
     return itemList.filter(upperItem => {
       return item.column === upperItem.column ||
@@ -532,7 +528,7 @@ export default class Masonry extends React.PureComponent {
     if (
       (start >= top - extraThreshold && stop <= top + viewableHeight + extraThreshold) || // If page starts and stops within the trigger area
       (start <= top + extraThreshold && stop >= top - extraThreshold) || // If page starts before and runs within trigger area
-      (start >= top - extraThreshold  && start <= top + viewableHeight + extraThreshold) || // If page starts within the trigger area
+      (start >= top - extraThreshold && start <= top + viewableHeight + extraThreshold) || // If page starts within the trigger area
       (stop > top - extraThreshold && stop <= top + viewableHeight + extraThreshold) // If the page stops within the trigger area
     ) {
       return true;
@@ -542,6 +538,7 @@ export default class Masonry extends React.PureComponent {
   }
 
   checkInfiniteLoad(bounds) {
+    if (!this.props.hasMore) { return }
     if (this.props.scrollAnchor === window) {
       if (bounds.top + bounds.height < window.innerHeight + this.props.threshold) {
         this.props.onInfiniteLoad();
@@ -579,7 +576,7 @@ export default class Masonry extends React.PureComponent {
     return this.props.scrollAnchor.offsetHeight;
   }
 
-  onReference = (node) => this.node = node;
+  onReference = (node) => { this.node = node; }
 
   render() {
     const {
@@ -589,7 +586,6 @@ export default class Masonry extends React.PureComponent {
       hasMore,
       loadingElement,
       isLoading,
-      itemProps,
       itemComponent: Item,
     } = this.props;
 
