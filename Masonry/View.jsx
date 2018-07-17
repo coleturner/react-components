@@ -29,6 +29,7 @@
       pageClassName="masonry-page"
       loadingElement={<span>Loading...</span>}
       columnWidth={columnWidth}
+      numColumns={numColumns}
       columnGutter={columnGutter}
       hasMore={this.props.hasMore}
       isLoading={this.props.isFetching}
@@ -65,15 +66,16 @@ const defaultColumnSpanSelector = () => 1;
 const sortAscending = (a, b) => a - b;
 const sortTopByAscending = (a, b) => a.top - b.top;
 const classNamePropType = PropTypes.oneOfType([
-  PropTypes.string,
-  PropTypes.array
-]).isRequired;
+    PropTypes.string,
+    PropTypes.array
+  ]).isRequired;
 
 export default class Masonry extends React.PureComponent {
   static propTypes = {
     alignCenter: PropTypes.bool.isRequired,
     columnGutter: PropTypes.number.isRequired,
-    columnWidth: PropTypes.number.isRequired,
+    columnWidth: PropTypes.number,
+    numColumns: PropTypes.number, // will take precedence over columnWidth
     containerClassName: classNamePropType,
     layoutClassName: classNamePropType,
     pageClassName: classNamePropType,
@@ -130,12 +132,19 @@ export default class Masonry extends React.PureComponent {
     this.layout(this.props, true);
   }, 150, { trailing: true })
 
+  dynamicWidth = () => (
+    this.props.numColumns ?
+      Math.floor((this.node.offsetWidth - this.props.columnGutter * (this.props.numColumns - 1)) / this.props.numColumns) :
+      this.props.columnWidth
+  )
+
   layout(props, rearrange=false) {
     if (!this.node) {
       return;
     }
 
     const {
+      numColumns,
       columnWidth,
       columnGutter,
       items,
@@ -144,7 +153,8 @@ export default class Masonry extends React.PureComponent {
 
     let c = itemComponent.constructor;
     let componentName = c.displayName || c.name;
-    if (!componentName) {
+
+    if (!('getHeightFromProps' in c)) {
       c = itemComponent().type;
       componentName = c.displayName || c.name;
     }
@@ -159,10 +169,11 @@ export default class Masonry extends React.PureComponent {
 
     // Decide a starter position for centering
     const viewableWidth = this.node.offsetWidth;
+    const dynamicColumnWidth = this.dynamicWidth()
     const viewableHeight = this.getViewableHeight();
-    const maxColumns = Math.floor(viewableWidth / (columnWidth + columnGutter));
-    const spannableWidth = maxColumns * columnWidth + (columnGutter * (maxColumns - 1));
-    const viewableStart = this.props.alignCenter ? (viewableWidth - spannableWidth) / 2 : 0;
+    const maxColumns = numColumns || Math.floor(viewableWidth / (dynamicColumnWidth + columnGutter));
+    const spannableWidth = maxColumns * dynamicColumnWidth + (columnGutter * (maxColumns - 1));
+    const viewableStart = this.props.alignCenter && !numColumns ? (viewableWidth - spannableWidth) / 2 : 0;
 
     // Setup bounds and limiters for deciding how to stage items in a page
     const itemsPerPage = maxColumns * Math.ceil(viewableHeight / this.state.averageHeight);
@@ -215,13 +226,12 @@ export default class Masonry extends React.PureComponent {
         console.warn(`Skipping feed item ${componentName} with props ${JSON.stringify(itemProps)} because "${height}" is not a number.`);
         return workingPages;
       }
-
       const item = {
         props: itemProps,
         column,
         columnSpan,
         height,
-        width: (columnSpan * columnWidth) + ((columnSpan - 1) * columnGutter)
+        width: (columnSpan * dynamicColumnWidth) + ((columnSpan - 1) * columnGutter)
       };
 
       // Here is where the magic happens
@@ -288,7 +298,6 @@ export default class Masonry extends React.PureComponent {
 
 
       column += columnSpan;
-
       workingPage.items.push(item);
       stagedItems.push(item);
       lastWorkingIndex = items.indexOf(itemProps); // not `item`!!
@@ -316,7 +325,8 @@ export default class Masonry extends React.PureComponent {
       averageHeight,
       columnHeights,
       columnGaps,
-      maxColumns
+      maxColumns,
+      dynamicColumnWidth
     });
   }
 
@@ -455,7 +465,7 @@ export default class Masonry extends React.PureComponent {
   }
 
   getLeftPositionForColumn(column, viewableStart) {
-    return viewableStart + (column * (this.props.columnWidth + this.props.columnGutter));
+    return viewableStart + (column * (this.dynamicWidth() + this.props.columnGutter));
   }
 
   onScroll = throttle(() => {
@@ -585,12 +595,14 @@ export default class Masonry extends React.PureComponent {
                   return (
                     <Item
                       key={itemIndex}
-                      columnSpan={columnSpan}
+                      data-column-span={columnSpan}
                       style={{
                         position: 'absolute',
-                        left: left + 'px',
-                        top: top + 'px',
-                        width: width + 'px'
+                        left: '0',
+                        top: '0',
+                        width: `${width}px`,
+                        height: `${height}px`,
+                        transform: `translate3d(${left}px, ${top}px, 0)`
                       }}
                       {...props}
                     />
