@@ -192,10 +192,10 @@ export default class Masonry extends React.PureComponent {
 
     // Decide a starter position for centering
     const viewableWidth = this.node.offsetWidth;
-    const dynamicColumnWidth = this.dynamicWidth()
+    const colWidth = this.dynamicWidth()
     const viewableHeight = this.getViewableHeight();
-    const maxColumns = numColumns || Math.floor(viewableWidth / (dynamicColumnWidth + columnGutter));
-    const spannableWidth = maxColumns * dynamicColumnWidth + (columnGutter * (maxColumns - 1));
+    const maxColumns = numColumns || Math.floor(viewableWidth / (colWidth + columnGutter));
+    const spannableWidth = maxColumns * colWidth + (columnGutter * (maxColumns - 1));
     const viewableStart = this.props.alignCenter && !numColumns ? (viewableWidth - spannableWidth) / 2 : 0;
 
     // Setup bounds and limiters for deciding how to stage items in a page
@@ -254,7 +254,7 @@ export default class Masonry extends React.PureComponent {
         column,
         columnSpan,
         height,
-        width: (columnSpan * dynamicColumnWidth) + ((columnSpan - 1) * columnGutter)
+        width: (columnSpan * colWidth) + ((columnSpan - 1) * columnGutter)
       };
 
       // Here is where the magic happens
@@ -348,7 +348,7 @@ export default class Masonry extends React.PureComponent {
       columnHeights,
       columnGaps,
       maxColumns,
-      dynamicColumnWidth
+      colWidth
     });
   }
 
