@@ -144,10 +144,10 @@ export default class Masonry extends React.PureComponent {
     const _cols = _p.numColumns
     const _containerWidth = this.node.offsetWidth
     const _gutter = _p.columnGutter
-    if (this.state.containerWidth === _containerWidth && this.state._colWidth) {
-      return this.state._colWidth;
+    if (this.state.containerWidth === _containerWidth && this.state.columnWidth) {
+      return this.state.columnWidth;
     }
-    // Column width for will be what ever is left over after the total
+    // Column width will be what ever is left over after the total
     // gutter has been subtracted from the container width, divided by
     // number of columns.
     // Number of gutters are one less than number of columns.
