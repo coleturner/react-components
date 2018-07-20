@@ -110,15 +110,8 @@ export default class Masonry extends React.PureComponent {
 
   state = { averageHeight: 300, pages: [] }
 
-  static getDerivedStateFromProps (nextProps, prevProps) {
-    if (!prevProps.props || nextProps.items.length !== prevProps.props.items.length) {
-      return {props: nextProps}
-    }
-    return {props: null}
-  }
-
   componentDidMount() {
-    this.layout(this.state.props || this.props);
+    this.layout(this.props);
     this.onScroll();
     document.addEventListener('scroll', this.onScroll);
     window.addEventListener('resize', this.onResize);
@@ -136,14 +129,13 @@ export default class Masonry extends React.PureComponent {
   }
 
   onResize = throttle(() => {
-    this.layout((this.state.props || this.props), true);
+    this.layout((this.props), true);
   }, 150, { trailing: true })
 
   dynamicWidth = () => {
-    const _p = this.state.props || this.props;
-    const _cols = _p.numColumns;
+    const _cols = this.props.numColumns;
     const _containerWidth = this.node.offsetWidth;
-    const _gutter = _p.columnGutter;
+    const _gutter = this.props.columnGutter;
     if (this.state.containerWidth === _containerWidth && this.state.columnWidth) {
       return this.state.columnWidth;
     }
@@ -152,7 +144,7 @@ export default class Masonry extends React.PureComponent {
     // number of columns.
     // Number of gutters are one less than number of columns.
     const _dynColWidth = Math.floor((_containerWidth - _gutter * (_cols - 1)) / _cols)
-    const _columnWidth = _cols ? _dynColWidth : _p.columnWidth;
+    const _columnWidth = _cols ? _dynColWidth : this.props.columnWidth;
     if (!_columnWidth) {
       throw new Error(`Can't figure out column width, either 'numColumns' or 'columnWidth' needs to be set.`);
     }
