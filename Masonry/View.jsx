@@ -155,7 +155,7 @@ export default class Masonry extends React.PureComponent {
     return _columnWidth;
   }
 
-  getItemComponentMethods = (itemComponent) => {
+  prepareComponent = (itemComponent) => {
     let _component = itemComponent.constructor;
     let _componentName = _component.displayName || _component.name;
 
@@ -186,7 +186,7 @@ export default class Masonry extends React.PureComponent {
       itemComponent
     } = props;
 
-    const { componentName, heightSelector, columnSpanSelector } = this.getItemComponentMethods(itemComponent);
+    const { componentName, heightSelector, columnSpanSelector } = this.prepareComponent(itemComponent);
     // Decide a starter position for centering
     const viewableWidth = this.node.offsetWidth;
     const columnWidth = this.dynamicWidth();
