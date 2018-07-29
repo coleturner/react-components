@@ -240,7 +240,7 @@ export default class Masonry extends React.PureComponent {
       }
 
       // Determine the height of this item to stage
-      const height = heightSelector(props.getState, itemProps, columnSpan, columnGutter);
+      const height = heightSelector(props.getState, itemProps, columnSpan, columnGutter, columnWidth);
 
       if (isNaN(height)) {
         console.warn(`Skipping feed item ${componentName} with props ${JSON.stringify(itemProps)} because "${height}" is not a number.`);
@@ -608,7 +608,7 @@ export default class Masonry extends React.PureComponent {
                   return (
                     <Item
                       key={itemIndex}
-                      data-column-span={columnSpan}
+                      columnSpan={columnSpan}
                       style={{
                         position: 'absolute',
                         left: '0',
