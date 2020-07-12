@@ -1,5 +1,11 @@
 # Masonry
 
+**Unmaintained warning**
+
+Use at your own risk. This is not an official release and is not supported or maintained. It will get you 99% of the way to what you need if you're looking for a performant masonry layout in React/JS. However, you can expect that it will not work out of the box and will require some tweaks. 
+
+If you would like to volunteer as a maintainer and discuss support in an official open source capacity, please reach out to @coleturner.
+
 ## Useage
 
 This is a two step setup, first you need to create your component that will utilize the Masonry component, and you will also need to supply the Masonry component with a list of data as well as a item component that will receive the data.
