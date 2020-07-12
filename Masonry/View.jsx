@@ -1,6 +1,7 @@
 /**
  * Masonry Component for React
  * @author Cole Turner <turner.cole@gmail.com | www.cole.codes>
+ * @contributors Jan (@jnaO)
  *
  * If you use this, please retain the author name.
  * Please PR any new features you add so that others can enjoy
