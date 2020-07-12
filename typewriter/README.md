@@ -11,7 +11,7 @@ For example:
 It can handle multiple backspace sequences:
 ```jsx
 <Typewriter text="I enjoy engineering 👉okay👈good👈great ideas for the web." />
-```jsx
+```
 
 - types I enjoy engineering
 - types okay
