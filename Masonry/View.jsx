@@ -1,11 +1,12 @@
 /**
  * Masonry Component for React
  * @author Cole Turner <turner.cole@gmail.com | www.cole.codes>
- * 
+ * @contributors Jan (@jnaO)
+ *
  * If you use this, please retain the author name.
  * Please PR any new features you add so that others can enjoy
  * the blood sweat and tears of open source.
- * 
+ *
  * Features:
  *  - Masonry Layout
  *    A) Items must have fixed column width
@@ -16,8 +17,8 @@
  *    D) New items will layout if the previous layout parameters still apply
  *    E) Function `getState` returns either Redux or local component state
  *  - Infinite Scroll
- * 
- * 
+ *
+ *
  * How to use:
     const myArrayOfItems = [{ name: 'Hello' }, { name: 'World' }]
     <Masonry
@@ -29,6 +30,7 @@
       pageClassName="masonry-page"
       loadingElement={<span>Loading...</span>}
       columnWidth={columnWidth}
+      numColumns={numColumns}
       columnGutter={columnGutter}
       hasMore={this.props.hasMore}
       isLoading={this.props.isFetching}
@@ -47,42 +49,42 @@
       static getHeightFromProps = (getState, props, columnSpan, columnGutter) => {
         return IMAGE_HEIGHT + TITLE_HEIGHT + FOOTER_HEIGHT;
       }
-      
+
       render() {
         ...
       }
     }
  */
 
-
 import React from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import throttle from 'lodash.throttle';
+import throttle from 'lodash/throttle';
 
 const noPage = { stop: 0 };
 const defaultColumnSpanSelector = () => 1;
 const sortAscending = (a, b) => a - b;
 const sortTopByAscending = (a, b) => a.top - b.top;
 const classNamePropType = PropTypes.oneOfType([
-    PropTypes.String,
-    PropTypes.array
-  ]).isRequired;
+  PropTypes.string,
+  PropTypes.array
+]);
 
 export default class Masonry extends React.PureComponent {
   static propTypes = {
     alignCenter: PropTypes.bool.isRequired,
     columnGutter: PropTypes.number.isRequired,
-    columnWidth: PropTypes.number.isRequired,
+    columnWidth: PropTypes.number,
+    numColumns: PropTypes.number, // will take precedence over columnWidth
     containerClassName: classNamePropType,
     layoutClassName: classNamePropType,
     pageClassName: classNamePropType,
     hasMore: PropTypes.bool.isRequired,
     isLoading: PropTypes.bool.isRequired,
     items: PropTypes.array.isRequired,
-    itemComponent: PropTypes.oneOf([
+    itemComponent: PropTypes.oneOfType([
       PropTypes.instanceOf(React.Component),
-      PropTypes.function
+      PropTypes.func
     ]).isRequired,
     itemProps: PropTypes.object,
     loadingElement: PropTypes.node,
@@ -103,7 +105,8 @@ export default class Masonry extends React.PureComponent {
       </div>
     ),
     scrollAnchor: window,
-    threshold: window.innerHeight * 2
+    threshold: window.innerHeight * 2,
+    columnGutter: 0
   }
 
   state = { averageHeight: 300, pages: [] }
@@ -120,15 +123,57 @@ export default class Masonry extends React.PureComponent {
     window.removeEventListener('resize', this.onResize);
   }
 
-  componentWillReceiveProps(nextProps) {
-    if (nextProps.items.length !== this.props.items.length) {
-      this.layout(nextProps);
+  componentDidUpdate (prevProps, prevState) {
+    if (prevProps.items.length !== this.props.items.length) {
+      this.layout(this.props, false)
     }
   }
 
   onResize = throttle(() => {
-    this.layout(this.props, true);
+    this.layout((this.props), true);
   }, 150, { trailing: true })
+
+  dynamicWidth = () => {
+    const _cols = this.props.numColumns;
+    const _containerWidth = this.node.offsetWidth;
+    const _gutter = this.props.columnGutter;
+    if (this.state.containerWidth === _containerWidth && this.state.columnWidth) {
+      return this.state.columnWidth;
+    }
+    // Column width will be what ever is left over after the total
+    // gutter has been subtracted from the container width, divided by
+    // number of columns.
+    // Number of gutters are one less than number of columns.
+    const _dynColWidth = Math.floor((_containerWidth - _gutter * (_cols - 1)) / _cols)
+    const _columnWidth = _cols ? _dynColWidth : this.props.columnWidth;
+    if (!_columnWidth) {
+      throw new Error(`Can't figure out column width, either 'numColumns' or 'columnWidth' needs to be set.`);
+    }
+    this.setState({
+      columnWidth: _columnWidth,
+      containerWidth: _containerWidth,
+    })
+    return _columnWidth;
+  }
+
+  prepareComponent = (itemComponent) => {
+    let _component = itemComponent.constructor;
+    let _componentName = _component.displayName || _component.name;
+
+    if (!('getHeightFromProps' in _component)) {
+      _component = itemComponent().type;
+      _componentName = _component.displayName || _component.name;
+    }
+
+    if (!('getHeightFromProps' in _component)) {
+      throw new Error(`Component type ${_componentName} does not respond to 'getHeightFromProps'`)
+    }
+    return {
+      componentName: _componentName,
+      heightSelector: _component.getHeightFromProps,
+      columnSpanSelector: _component.getColumnSpanFromProps || defaultColumnSpanSelector,
+    }
+  }
 
   layout(props, rearrange=false) {
     if (!this.node) {
@@ -136,28 +181,20 @@ export default class Masonry extends React.PureComponent {
     }
 
     const {
-      columnWidth,
+      numColumns,
       columnGutter,
       items,
       itemComponent
     } = props;
 
-    const componentName = itemComponent.constructor.displayName || itemComponent.constructor.name;
-
-    if (!('getHeightFromProps' in itemComponent.constructor)) {
-      throw new Error(`Component type ${componentName} does not respond to 'getHeightFromProps'`);
-    }
-
-    const heightSelector = itemComponent.constructor.getHeightFromProps;
-    const columnSpanSelector = itemComponent.constructor.getColumnSpanFromProps || defaultColumnSpanSelector;
-
-
+    const { componentName, heightSelector, columnSpanSelector } = this.prepareComponent(itemComponent);
     // Decide a starter position for centering
     const viewableWidth = this.node.offsetWidth;
+    const columnWidth = this.dynamicWidth();
     const viewableHeight = this.getViewableHeight();
-    const maxColumns = Math.floor(viewableWidth / (columnWidth + columnGutter));
+    const maxColumns = numColumns || Math.floor(viewableWidth / (columnWidth + columnGutter));
     const spannableWidth = maxColumns * columnWidth + (columnGutter * (maxColumns - 1));
-    const viewableStart = this.props.alignCenter ? (viewableWidth - spannableWidth) / 2 : 0;
+    const viewableStart = this.props.alignCenter && !numColumns ? (viewableWidth - spannableWidth) / 2 : 0;
 
     // Setup bounds and limiters for deciding how to stage items in a page
     const itemsPerPage = maxColumns * Math.ceil(viewableHeight / this.state.averageHeight);
@@ -204,13 +241,12 @@ export default class Masonry extends React.PureComponent {
       }
 
       // Determine the height of this item to stage
-      const height = heightSelector(props.getState, itemProps, columnSpan, columnGutter);
+      const height = heightSelector(props.getState, itemProps, columnSpan, columnGutter, columnWidth);
 
       if (isNaN(height)) {
         console.warn(`Skipping feed item ${componentName} with props ${JSON.stringify(itemProps)} because "${height}" is not a number.`);
         return workingPages;
       }
-
       const item = {
         props: itemProps,
         column,
@@ -281,9 +317,7 @@ export default class Masonry extends React.PureComponent {
           columnHeights[item.column + index] = Math.max(thisColumn, item.top + item.height + columnGutter);
         });
 
-
       column += columnSpan;
-
       workingPage.items.push(item);
       stagedItems.push(item);
       lastWorkingIndex = items.indexOf(itemProps); // not `item`!!
@@ -311,7 +345,8 @@ export default class Masonry extends React.PureComponent {
       averageHeight,
       columnHeights,
       columnGaps,
-      maxColumns
+      maxColumns,
+      columnWidth
     });
   }
 
@@ -334,7 +369,6 @@ export default class Masonry extends React.PureComponent {
     const columnGaps = columnHeights
       .slice(0, maxColumns - columnSpan + 1) // only measure columns it can span
       .reduce((gapReduction, thisColumnHeight, column) => {
-
         if (thisColumnHeight < columnHeights[column + 1]) {
           // If this item clips the next column, overextend
           gapReduction[column] = columnHeights[column + 1];
@@ -438,7 +472,6 @@ export default class Masonry extends React.PureComponent {
     return null;
   }
 
-
   findItemsInSameColumn(itemList, item) {
     return itemList.filter(upperItem => {
       return item.column === upperItem.column ||
@@ -450,7 +483,7 @@ export default class Masonry extends React.PureComponent {
   }
 
   getLeftPositionForColumn(column, viewableStart) {
-    return viewableStart + (column * (this.props.columnWidth + this.props.columnGutter));
+    return viewableStart + (column * (this.dynamicWidth() + this.props.columnGutter));
   }
 
   onScroll = throttle(() => {
@@ -493,26 +526,23 @@ export default class Masonry extends React.PureComponent {
     if (
       (start >= top - extraThreshold && stop <= top + viewableHeight + extraThreshold) || // If page starts and stops within the trigger area
       (start <= top + extraThreshold && stop >= top - extraThreshold) || // If page starts before and runs within trigger area
-      (start >= top - extraThreshold  && start <= top + viewableHeight + extraThreshold) || // If page starts within the trigger area
+      (start >= top - extraThreshold && start <= top + viewableHeight + extraThreshold) || // If page starts within the trigger area
       (stop > top - extraThreshold && stop <= top + viewableHeight + extraThreshold) // If the page stops within the trigger area
     ) {
       return true;
     }
-  
+
     return false;
   }
 
   checkInfiniteLoad(bounds) {
+    if (!this.props.hasMore) { return }
     if (this.props.scrollAnchor === window) {
       if (bounds.top + bounds.height < window.innerHeight + this.props.threshold) {
         this.props.onInfiniteLoad();
-        return;
       }
-
-      return;
     } else if (this.props.threshold > this.props.scrollAnchor.scrollHeight - this.getScrollTop()) {
       this.props.onInfiniteLoad();
-      return;
     }
   }
 
@@ -540,7 +570,7 @@ export default class Masonry extends React.PureComponent {
     return this.props.scrollAnchor.offsetHeight;
   }
 
-  onReference = (node) => this.node = node;
+  onReference = (node) => { this.node = node; }
 
   render() {
     const {
@@ -550,7 +580,6 @@ export default class Masonry extends React.PureComponent {
       hasMore,
       loadingElement,
       isLoading,
-      itemProps,
       itemComponent: Item,
     } = this.props;
 
@@ -583,9 +612,11 @@ export default class Masonry extends React.PureComponent {
                       columnSpan={columnSpan}
                       style={{
                         position: 'absolute',
-                        left: left + 'px',
-                        top: top + 'px',
-                        width: width + 'px'
+                        left: '0',
+                        top: '0',
+                        width: `${width}px`,
+                        height: `${height}px`,
+                        transform: `translate3d(${left}px, ${top}px, 0)`
                       }}
                       {...props}
                     />
